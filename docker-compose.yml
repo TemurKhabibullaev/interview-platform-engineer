@@ -1,0 +1,22 @@
+services:
+  embeddings:
+    build:
+      context: .
+    image: embeddings-api:dev
+    ports:
+      - "8000:8000"
+    environment:
+      # Keep model selection configurable without rebuilding the image
+      MODEL_NAME: "all-MiniLM-L6-v2"
+
+      # Persist model caches across container restarts/rebuilds
+      SENTENCE_TRANSFORMERS_HOME: "/data/st"
+      HF_HOME: "/data/hf"
+    volumes:
+      - st_cache:/data/st
+      - hf_cache:/data/hf
+    restart: unless-stopped
+
+volumes:
+  st_cache:
+  hf_cache:
