@@ -10,6 +10,7 @@ A FastAPI service that converts text into vector embeddings using [`sentence-tra
 
 
 ## Quickstart (Docker-Recommended)
+> First startup may take ~30–60 seconds due to model download.
 
 From the repo root:
 
