@@ -16,16 +16,25 @@ From the repo root:
 ```bash
 docker compose up --build
 ```
-To stop:
-```bash
-docker compose down
-```
 
 Then visit:
 
 * http://localhost:8000/health - (liveness)
 * http://localhost:8000/ready - (readiness; returns 200 only after the model is loaded)
 * http://localhost:8000/docs - (Swagger UI)
+
+## Cleanup
+
+To stop:
+```bash
+docker compose down
+```
+
+Remove cached model volumes (forces re-download):
+```bash
+docker compose down -v
+```
+
 
 ## Model caching (important)
 The container uses Docker volumes to persist model weights across restarts/rebuilds:
@@ -181,10 +190,10 @@ or a batch:
 }
 ```
 
-## Example curl
+## Example Curl Request
 
 ```bash
-curl -X POST http://localhost:8000/embed \
+curl -s -X POST http://localhost:8000/embed \
   -H "Content-Type: application/json" \
-  -d '{"text": "Hello, world!"}'
+  -d '{"text":"hello"}' | head
 ```
