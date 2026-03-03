@@ -35,6 +35,11 @@ Remove cached model volumes (forces re-download):
 ```bash
 docker compose down -v
 ```
+ Remove all stopped containers, networks not used by at least one container, images without at least one container associated to them, and all build cache:
+ 
+```bash
+docker system prune -a
+```
 
 ## Quickstart (Local dev)
 
