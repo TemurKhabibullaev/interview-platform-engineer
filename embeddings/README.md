@@ -8,6 +8,52 @@ A FastAPI service that converts text into vector embeddings using [`sentence-tra
 - [uv](https://docs.astral.sh/uv/) — Python package manager
 - Python 3.14 (automatically managed by uv)
 
+
+## Quickstart (Docker)
+
+From the repo root:
+
+```bash
+docker compose up --build
+```
+To stop:
+```bash
+docker compose down
+```
+
+Then visit:
+
+* http://localhost:8000/health - (liveness)
+* http://localhost:8000/ready - (readiness; returns 200 only after the model is loaded)
+* http://localhost:8000/docs - (Swagger UI)
+
+## Model caching (important)
+The container uses Docker volumes to persist model weights across restarts/rebuilds:
+
+* SENTENCE_TRANSFORMERS_HOME=/data/st
+* HF_HOME=/data/hf
+
+This prevents re-downloading the model each time you run the service.
+
+## Quickstart (Local dev)
+
+From the repo root:
+
+```bash
+make dev
+```
+
+SENTENCE_TRANSFORMERS_HOME=/data/st
+
+HF_HOME=/data/hf
+
+This prevents re-downloading the model each time you run the service.
+
+Quickstart (Local dev)
+
+From the repo root:
+
+make dev
 ## Running Locally
 
 ### 1. Install dependencies
@@ -36,6 +82,64 @@ FastAPI ships with built-in docs:
 | ReDoc      | http://localhost:8000/redoc |
 
 ## Endpoints
+- `GET /health`  → liveness (process up)
+- `GET /ready`   → readiness (model loaded)
+- `POST /embed`  → returns embeddings for text(s)
+
+## Configuration
+
+The service is configurable via environment variables:
+
+- `MODEL_NAME`  
+  Default: `all-MiniLM-L6-v2`  
+  Allows swapping embedding models without changing code.
+
+- `SENTENCE_TRANSFORMERS_HOME`  
+  Default (in container): `/data/st`  
+  Controls where SentenceTransformer caches model weights.
+
+- `HF_HOME`  
+  Default (in container): `/data/hf`  
+  Controls HuggingFace cache location.
+
+These are set automatically in `docker-compose.yml`, but can be overridden.
+
+## Design Decisions
+
+### 1. Model loads at startup
+The embedding model is loaded during application startup (FastAPI lifespan).
+This ensures:
+
+- No per-request loading overhead
+- Readiness is blocked until the model is fully initialized
+- Failure to load the model fails fast during startup
+
+### 2. Separate liveness and readiness
+
+- `/health` → liveness (process is running)
+- `/ready` → readiness (model successfully loaded)
+
+This separation mirrors production patterns (e.g., Kubernetes probes).
+
+### 3. Multi-stage Docker build
+
+The Dockerfile uses a builder stage to:
+
+- Install dependencies using a locked `uv.lock`
+- Improve layer caching
+- Produce a smaller runtime image
+
+### 4. Non-root container
+
+The runtime container runs as a non-root user (`appuser`) for improved security.
+
+### 5. Persistent model caching
+
+Docker volumes are used to persist model weights:
+
+- Prevents re-downloading large models
+- Speeds up local development
+- Improves reliability in constrained environments
 
 ### `GET /health`
 
