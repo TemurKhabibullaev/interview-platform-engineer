@@ -9,7 +9,7 @@ A FastAPI service that converts text into vector embeddings using [`sentence-tra
 - Python 3.14 (automatically managed by uv)
 
 
-## Quickstart (Docker)
+## Quickstart (Docker-Recommended)
 
 From the repo root:
 
@@ -17,7 +17,7 @@ From the repo root:
 docker compose up --build
 ```
 
-Then visit:
+Service will be available at:
 
 * http://localhost:8000/health - (liveness)
 * http://localhost:8000/ready - (readiness; returns 200 only after the model is loaded)
@@ -25,7 +25,7 @@ Then visit:
 
 ## Cleanup
 
-To stop:
+Stop Containers:
 ```bash
 docker compose down
 ```
@@ -35,15 +35,6 @@ Remove cached model volumes (forces re-download):
 docker compose down -v
 ```
 
-
-## Model caching (important)
-The container uses Docker volumes to persist model weights across restarts/rebuilds:
-
-* SENTENCE_TRANSFORMERS_HOME=/data/st
-* HF_HOME=/data/hf
-
-This prevents re-downloading the model each time you run the service.
-
 ## Quickstart (Local dev)
 
 From the repo root:
@@ -52,48 +43,37 @@ From the repo root:
 make dev
 ```
 
-SENTENCE_TRANSFORMERS_HOME=/data/st
-
-HF_HOME=/data/hf
-
-This prevents re-downloading the model each time you run the service.
-
-Quickstart (Local dev)
-
-From the repo root:
-
-make dev
-## Running Locally
-
-### 1. Install dependencies
+Or manually:
 
 ```bash
 uv sync
-```
-
-### 2. Start the server
-
-```bash
 uv run uvicorn main:app --reload
 ```
-
-The API will be available at `http://localhost:8000`.
-
-> On first startup the model (`all-MiniLM-L6-v2`, ~90 MB) is downloaded from HuggingFace and cached locally. Subsequent starts are instant.
-
-## Interactive Docs
-
-FastAPI ships with built-in docs:
-
-| UI         | URL                         |
-| ---------- | --------------------------- |
-| Swagger UI | http://localhost:8000/docs  |
-| ReDoc      | http://localhost:8000/redoc |
+The API will be available at http://localhost:8000.
+On first startup the model (all-MiniLM-L6-v2, ~90MB) is downloaded from HuggingFace and cached locally. Subsequent starts are instant.
 
 ## Endpoints
 - `GET /health`  → liveness (process up)
 - `GET /ready`   → readiness (model loaded)
 - `POST /embed`  → returns embeddings for text(s)
+
+## Example Request
+
+```bash
+curl -s -X POST http://localhost:8000/embed \
+  -H "Content-Type: application/json" \
+  -d '{"text":"hello"}' | head
+```
+
+## Example Response
+
+```json
+{
+  "embeddings": [[0.021, -0.045, ...]],
+  "model": "all-MiniLM-L6-v2",
+  "dimensions": 384
+}
+```
 
 ## Configuration
 
@@ -114,86 +94,82 @@ The service is configurable via environment variables:
 These are set automatically in `docker-compose.yml`, but can be overridden.
 
 ## Design Decisions
+1. Model loads at startup
 
-### 1. Model loads at startup
-The embedding model is loaded during application startup (FastAPI lifespan).
-This ensures:
+The embedding model is loaded during FastAPI startup (lifespan event):
+* Avoids per-request load latency
+* Ensures readiness blocks traffic until fully initialized
+* Fails fast if model initialization fails
 
-- No per-request loading overhead
-- Readiness is blocked until the model is fully initialized
-- Failure to load the model fails fast during startup
+2. Separate Liveness and Readiness
 
-### 2. Separate liveness and readiness
+* /health → verifies process is running
+* /ready → verifies model successfully loaded
 
-- `/health` → liveness (process is running)
-- `/ready` → readiness (model successfully loaded)
+This mirrors production deployment patterns (e.g., Kubernetes probes).
 
-This separation mirrors production patterns (e.g., Kubernetes probes).
+3. Multi-stage Docker Build
 
-### 3. Multi-stage Docker build
+The Dockerfile:
+* Uses a builder stage
+* Installs locked dependencies (uv.lock)
+* Improves Docker layer caching
+* Produces a smaller runtime image
 
-The Dockerfile uses a builder stage to:
+4. Non-root Runtime Container
 
-- Install dependencies using a locked `uv.lock`
-- Improve layer caching
-- Produce a smaller runtime image
+The application runs as a non-root user (appuser) for improved container security.
 
-### 4. Non-root container
+5. Persistent Model Caching
 
-The runtime container runs as a non-root user (`appuser`) for improved security.
+Docker volumes persist model weights:
+* Prevents repeated downloads
+* Speeds up local development
+* Improves reliability in constrained environments
 
-### 5. Persistent model caching
 
-Docker volumes are used to persist model weights:
+## Model Caching
 
-- Prevents re-downloading large models
-- Speeds up local development
-- Improves reliability in constrained environments
+The container uses Docker volumes to persist model weights across restarts and rebuilds:
+
+- `SENTENCE_TRANSFORMERS_HOME=/data/st`
+- `HF_HOME=/data/hf`
+
+This prevents re-downloading large models on every run and improves local development speed.
+
+## Interactive Documentation
+
+FastAPI provides built-in interactive API documentation:
+
+| UI         | URL                         |
+| ---------- | --------------------------- |
+| Swagger UI | http://localhost:8000/docs  |
+| ReDoc      | http://localhost:8000/redoc |
+
+
+## Example API Usage
 
 ### `GET /health`
-
-Returns service status.
 
 ```json
 {"status": "ok"}
 ```
 
----
+POST /embed
 
-### `POST /embed`
-
-Convert one or more strings into vectors.
-
-**Request body**
-
-```json
+Request:
 {
   "text": "Hello, world!"
 }
-```
 
-or a batch:
-
-```json
+Batch request:
 {
   "text": ["Hello, world!", "FastAPI is great"]
 }
-```
 
-**Response**
-
-```json
+Response:
 {
   "embeddings": [[0.021, -0.045, ...]],
   "model": "all-MiniLM-L6-v2",
   "dimensions": 384
 }
-```
-
-## Example Curl Request
-
-```bash
-curl -s -X POST http://localhost:8000/embed \
-  -H "Content-Type: application/json" \
-  -d '{"text":"hello"}' | head
-```
