@@ -21,12 +21,12 @@ make up
 Ensure Docker Desktop is running.
 Recommended commands:
 
-make up      # build + start via Docker Compose
-make down    # stop containers
-make logs    # follow logs
-make test    # smoke test (requires service running)
-make dev     # run locally with uv (hot reload)
-make help    # all commands
+* "make up"      - build + start via Docker Compose
+* "make down"    - stop containers
+* "make logs"    - follow logs
+* "make test"    - smoke test (requires service running)
+* "make dev"     - run locally with uv (hot reload)
+* "make help"    - all commands
 
 ## Quickstart (Docker)
 > First startup may take ~30–60 seconds due to model download.
