@@ -7,9 +7,28 @@ A FastAPI service that converts text into vector embeddings using [`sentence-tra
 
 - [uv](https://docs.astral.sh/uv/) — Python package manager
 - Python 3.14 (automatically managed by uv)
+- Docker Desktop
 
+## From a clean checkout
 
-## Quickstart (Docker-Recommended)
+```bash
+git clone <repo>
+cd interview-platform-engineer
+make up
+```
+
+## Command runner (Makefile)
+Ensure Docker Desktop is running.
+Recommended commands:
+
+make up      # build + start via Docker Compose
+make down    # stop containers
+make logs    # follow logs
+make test    # smoke test (requires service running)
+make dev     # run locally with uv (hot reload)
+make help    # all commands
+
+## Quickstart (Docker)
 > First startup may take ~30–60 seconds due to model download.
 
 From the repo root:
@@ -35,7 +54,7 @@ Remove cached model volumes (forces re-download):
 ```bash
 docker compose down -v
 ```
- Remove all stopped containers, networks not used by at least one container, images without at least one container associated to them, and all build cache:
+ Remove unused Docker resources (containers, images, networks, build cache):
  
 ```bash
 docker system prune -a
@@ -55,6 +74,7 @@ Or manually:
 uv sync
 uv run uvicorn main:app --reload
 ```
+
 The API will be available at http://localhost:8000.
 On first startup the model (all-MiniLM-L6-v2, ~90MB) is downloaded from HuggingFace and cached locally. Subsequent starts are instant.
 
@@ -161,9 +181,11 @@ FastAPI provides built-in interactive API documentation:
 {"status": "ok"}
 ```
 
-POST /embed
+### `POST /embed`
 
 Request:
+
+```json
 {
   "text": "Hello, world!"
 }
